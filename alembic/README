@@ -1,0 +1,35 @@
+Database Migration Walkthrough
+This walkthrough explains how to use the newly set up Alembic integration to manage database schema changes automatically.
+
+Prerequisites
+Ensure you have the dependencies installed:
+
+pip install -r requirements.txt
+How to Make Schema Changes
+Modify Models: Update your SQLAlchemy models in 
+app/models.py
+. For example, add a new column to a table.
+Generate Migration: Run the following command to auto-generate a migration script based on your changes:
+alembic revision --autogenerate -m "Describe your change here"
+This will create a new file in alembic/versions/.
+Apply Migration: Apply the changes to the database:
+alembic upgrade head
+Verification
+You can verify the current state of the database by checking the alembic_version table, which tracks the latest applied migration hash.
+
+Rollback
+To undo the last migration:
+
+alembic downgrade -1
+Setup details
+Configuration: alembic.ini and alembic/ directory have been created.
+Environment: 
+alembic/env.py
+ is configured to load environment variables from 
+.env
+ and import your models from app.models.
+Database: The database is located at 
+backend/db/payment.db
+ (as configured in 
+.env
+).
