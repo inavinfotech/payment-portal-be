@@ -65,6 +65,67 @@ async def get_payments(
         for payment, app_name in results
     ]
 
+@router.get("/payments/export")
+async def export_payments(
+    format: str,
+    app_id: Optional[str] = None,
+    status: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    query = db.query(models.Payment, models.App.name.label("app_name"))\
+        .join(models.App, models.Payment.app_id == models.App.id)
+    
+    if app_id:
+        query = query.filter(models.Payment.app_id == app_id)
+    if status:
+        query = query.filter(models.Payment.status == status)
+        
+    results = query.all()
+    
+    # Convert to list of dicts
+    data = []
+    for payment, app_name in results:
+        data.append({
+            "App Name": app_name,
+            "Razorpay Order ID": payment.razorpay_order_id,
+            "Razorpay Payment ID": payment.razorpay_payment_id,
+            "Amount": payment.amount,
+            "Currency": payment.currency,
+            "Status": payment.status,
+            "Date": payment.created_at.strftime("%Y-%m-%d %H:%M:%S") if payment.created_at else "",
+            "Paid At": payment.paid_at.strftime("%Y-%m-%d %H:%M:%S") if payment.paid_at else "",
+            "Failure Reason": payment.metadata_info.get("failure_reason", "") if payment.metadata_info else ""
+        })
+        
+    if not data:
+         # Exporting empty file with headers is fine
+         pass
+         
+    from ..services import export_service
+    from fastapi.responses import StreamingResponse
+    
+    if format == "csv":
+        file_stream = export_service.export_to_csv(data)
+        filename = "payments.csv"
+        media_type = "text/csv"
+    elif format == "excel":
+        file_stream = export_service.export_to_excel(data)
+        filename = "payments.xlsx"
+        media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    elif format == "pdf":
+        file_stream = export_service.export_to_pdf(data)
+        filename = "payments.pdf"
+        media_type = "application/pdf"
+    else:
+        raise HTTPException(status_code=400, detail="Invalid format")
+        
+    headers = {
+        'Content-Disposition': f'attachment; filename="{filename}"'
+    }
+    
+    return StreamingResponse(iter([file_stream.getvalue()]), media_type=media_type, headers=headers)
+
+
 @router.get("/dashboard-summary")
 async def get_dashboard_summary(db: Session = Depends(get_db)):
     total_payments = db.query(models.Payment).count()
@@ -76,8 +137,15 @@ async def get_dashboard_summary(db: Session = Depends(get_db)):
         func.sum(models.Payment.amount).label("total")
     ).filter(models.Payment.status == "paid").group_by(models.Payment.app_id).all()
     
+    # Payment status counts
+    status_counts = db.query(
+        models.Payment.status,
+        func.count(models.Payment.id).label("count")
+    ).group_by(models.Payment.status).all()
+    
     return {
         "total_payments": total_payments,
         "total_revenue": total_revenue,
-        "revenue_by_app": [{"app_id": r[0], "total": r[1]} for r in revenue_by_app]
+        "revenue_by_app": [{"app_id": r[0], "total": r[1]} for r in revenue_by_app],
+        "payment_status_counts": [{"status": r[0], "count": r[1]} for r in status_counts]
     }

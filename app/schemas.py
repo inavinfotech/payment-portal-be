@@ -55,6 +55,10 @@ class PaymentFail(BaseModel):
     reason: Optional[str] = None
     metadata: Optional[dict[str, Any]] = None
 
+class PaymentCancel(BaseModel):
+    razorpay_order_id: str
+    reason: str
+
 class PaymentVerificationData(BaseModel):
     verification_status: str
     payment_id: str
