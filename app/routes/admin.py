@@ -149,3 +149,58 @@ async def get_dashboard_summary(db: Session = Depends(get_db)):
         "revenue_by_app": [{"app_id": r[0], "total": r[1]} for r in revenue_by_app],
         "payment_status_counts": [{"status": r[0], "count": r[1]} for r in status_counts]
     }
+
+# Settings Endpoints
+
+@router.get("/settings")
+async def get_settings(db: Session = Depends(get_db)):
+    settings = db.query(models.SystemSetting).all()
+    # Convert list of models to dict
+    settings_dict = {s.key: s.value for s in settings}
+    
+    # Ensure default defaults exist in response if not in DB
+    if "global_payment_enabled" not in settings_dict:
+        settings_dict["global_payment_enabled"] = "true"
+        
+    return settings_dict
+
+@router.post("/settings")
+async def update_settings(settings: dict, db: Session = Depends(get_db)):
+    for key, value in settings.items():
+        setting = db.query(models.SystemSetting).filter(models.SystemSetting.key == key).first()
+        if setting:
+            setting.value = str(value)
+        else:
+            new_setting = models.SystemSetting(key=key, value=str(value))
+            db.add(new_setting)
+    
+    db.commit()
+    return {"status": "success", "message": "Settings updated"}
+
+@router.put("/apps/{app_id}/status")
+async def update_app_status(
+    app_id: str, 
+    status_update: schemas.AppStatusUpdate, 
+    db: Session = Depends(get_db)
+):
+    app = db.query(models.App).filter(models.App.id == app_id).first()
+    if not app:
+        raise HTTPException(status_code=404, detail="App not found")
+    
+    app.is_active = status_update.is_active
+    db.commit()
+    return {"status": "success", "is_active": app.is_active}
+
+@router.put("/apps/{app_id}/domains")
+async def update_app_domains(
+    app_id: str, 
+    domains_update: schemas.AppDomainsUpdate, 
+    db: Session = Depends(get_db)
+):
+    app = db.query(models.App).filter(models.App.id == app_id).first()
+    if not app:
+        raise HTTPException(status_code=404, detail="App not found")
+    
+    app.allowed_domains = domains_update.allowed_domains
+    db.commit()
+    return {"status": "success", "allowed_domains": app.allowed_domains}

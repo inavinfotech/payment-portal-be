@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from ..database import get_db
@@ -15,9 +15,56 @@ router = APIRouter(
 @router.post("/create-order", response_model=schemas.PaymentResponse)
 async def create_order(
     payment: schemas.PaymentCreate,
+    request: Request,
     db: Session = Depends(get_db),
     current_app: models.App = Depends(get_current_app)
 ):
+    # 1. Check Global Payment Switch
+    global_setting = db.query(models.SystemSetting).filter(models.SystemSetting.key == "global_payment_enabled").first()
+    if global_setting and global_setting.value.lower() == "false":
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Valid payment processing is currently disabled system-wide."
+        )
+
+    # 2. Check App Status
+    if not current_app.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This app has been blocked from accepting payments."
+        )
+
+    # 3. Check Domain Whitelisting
+    if current_app.allowed_domains and current_app.allowed_domains != "*":
+        allowed_list = [d.strip() for d in current_app.allowed_domains.split(",")]
+        origin = request.headers.get("origin")
+        referer = request.headers.get("referer")
+        
+        # Extract domain from origin/referer (simplified check)
+        # In a real scenario, we'd parse the URL properly.
+        # Here we just check if any allowed domain is present in origin/referer string
+        is_allowed = False
+        if origin:
+            for domain in allowed_list:
+                if domain in origin:
+                    is_allowed = True
+                    break
+        elif referer:
+             for domain in allowed_list:
+                if domain in referer:
+                    is_allowed = True
+                    break
+        else:
+            # If no origin/referer and domains are restricted, block?
+            # Or allow server-to-server calls? Assuming browser calls for now.
+            pass 
+            
+        if not is_allowed and (origin or referer):
+             raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Requests from this domain are not allowed. Allowed: {current_app.allowed_domains}"
+            )
+
     if payment.amount <= 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

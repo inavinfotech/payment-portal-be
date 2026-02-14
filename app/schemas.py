@@ -59,6 +59,12 @@ class PaymentCancel(BaseModel):
     razorpay_order_id: str
     reason: str
 
+class AppStatusUpdate(BaseModel):
+    is_active: bool
+
+class AppDomainsUpdate(BaseModel):
+    allowed_domains: str
+
 class PaymentVerificationData(BaseModel):
     verification_status: str
     payment_id: str

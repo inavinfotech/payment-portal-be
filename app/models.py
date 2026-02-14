@@ -12,8 +12,16 @@ class App(Base):
     api_key = Column(String, unique=True, index=True, nullable=False)
     api_secret_hash = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    is_active = Column(Boolean, default=True)
+    allowed_domains = Column(String, default="*") # Comma-separated list of allowed domains
 
     payments = relationship("Payment", back_populates="app")
+
+class SystemSetting(Base):
+    __tablename__ = "system_settings"
+
+    key = Column(String, primary_key=True)
+    value = Column(String)
 
 class Payment(Base):
     __tablename__ = "payments"
