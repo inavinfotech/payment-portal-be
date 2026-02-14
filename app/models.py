@@ -3,6 +3,11 @@ from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, J
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from .database import Base
+from datetime import datetime
+import pytz
+
+def get_ist_time():
+    return datetime.now(pytz.timezone('Asia/Kolkata'))
 
 class App(Base):
     __tablename__ = "apps"
@@ -11,7 +16,7 @@ class App(Base):
     name = Column(String, nullable=False)
     api_key = Column(String, unique=True, index=True, nullable=False)
     api_secret_hash = Column(String, nullable=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), default=get_ist_time)
     is_active = Column(Boolean, default=True)
     allowed_domains = Column(String, default="*") # Comma-separated list of allowed domains
 
@@ -36,7 +41,7 @@ class Payment(Base):
     razorpay_payment_id = Column(String, nullable=True)
     status = Column(String, default="created") # created, paid, failed
     metadata_info = Column(JSON, nullable=True) # Renamed from metadata to avoid conflict with SQLAlchemy metadata
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), default=get_ist_time)
     paid_at = Column(DateTime(timezone=True), nullable=True)
 
     app = relationship("App", back_populates="payments")

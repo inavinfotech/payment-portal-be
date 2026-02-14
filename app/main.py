@@ -29,3 +29,17 @@ app.include_router(admin.router)
 @app.get("/")
 def read_root():
     return {"message": "Payment Service is running"}
+
+# Background Scheduler for Cleanup
+from apscheduler.schedulers.background import BackgroundScheduler
+from .services.cleanup_service import process_stale_payments
+
+scheduler = BackgroundScheduler()
+# Run every 5 minutes
+scheduler.add_job(process_stale_payments, 'interval', minutes=5)
+scheduler.start()
+
+# Shutdown scheduler on app exit
+@app.on_event("shutdown")
+def shutdown_event():
+    scheduler.shutdown()
