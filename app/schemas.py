@@ -11,6 +11,7 @@ class AppCreate(AppBase):
 class AppResponse(AppBase):
     id: str
     api_key: str
+    api_secret_hash: str
     created_at: datetime
 
     class Config:
