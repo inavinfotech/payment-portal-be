@@ -13,6 +13,8 @@ class AppResponse(AppBase):
     api_key: str
     api_secret_hash: str
     created_at: datetime
+    is_active: bool
+    allowed_domains: str
 
     class Config:
         from_attributes = True
