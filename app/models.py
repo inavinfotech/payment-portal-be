@@ -18,6 +18,7 @@ class App(Base):
     api_secret_hash = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), default=get_ist_time)
     is_active = Column(Boolean, default=True)
+    is_live_mode = Column(Boolean, default=False)
     allowed_domains = Column(String, default="*") # Comma-separated list of allowed domains
 
     payments = relationship("Payment", back_populates="app")

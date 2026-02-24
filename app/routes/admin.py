@@ -29,7 +29,8 @@ async def create_app(app: schemas.AppCreate, db: Session = Depends(get_db)):
     db_app = models.App(
         name=app.name,
         api_key=api_key,
-        api_secret_hash=get_password_hash(api_secret)
+        api_secret_hash=get_password_hash(api_secret),
+        is_live_mode=app.is_live_mode
     )
     db.add(db_app)
     db.commit()
@@ -190,6 +191,20 @@ async def update_app_status(
     app.is_active = status_update.is_active
     db.commit()
     return {"status": "success", "is_active": app.is_active}
+
+@router.put("/apps/{app_id}/mode")
+async def update_app_mode(
+    app_id: str, 
+    mode_update: schemas.AppModeUpdate, 
+    db: Session = Depends(get_db)
+):
+    app = db.query(models.App).filter(models.App.id == app_id).first()
+    if not app:
+        raise HTTPException(status_code=404, detail="App not found")
+    
+    app.is_live_mode = mode_update.is_live_mode
+    db.commit()
+    return {"status": "success", "is_live_mode": app.is_live_mode}
 
 @router.put("/apps/{app_id}/domains")
 async def update_app_domains(

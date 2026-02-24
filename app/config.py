@@ -16,6 +16,9 @@ class Settings:
     RAZORPAY_KEY_ID: str = os.getenv("RAZORPAY_KEY_ID")
     RAZORPAY_KEY_SECRET: str = os.getenv("RAZORPAY_KEY_SECRET")
     
+    RAZORPAY_LIVE_KEY_ID: str = os.getenv("RAZORPAY_LIVE_KEY_ID")
+    RAZORPAY_LIVE_KEY_SECRET: str = os.getenv("RAZORPAY_LIVE_KEY_SECRET")
+    
     ADMIN_SECRET_KEY: str = os.getenv("ADMIN_SECRET_KEY")
 
 settings = Settings()

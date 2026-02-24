@@ -76,7 +76,8 @@ async def create_order(
         order = razorpay_service.create_order(
             amount=payment.amount,
             currency=payment.currency,
-            notes=payment.metadata_info
+            notes=payment.metadata_info,
+            is_live_mode=current_app.is_live_mode
         )
     except Exception as e:
         raise HTTPException(
@@ -109,7 +110,7 @@ async def create_order(
         currency=db_payment.currency,
         status=db_payment.status,
         created_at=db_payment.created_at,
-        key_id=settings.RAZORPAY_KEY_ID
+        key_id=settings.RAZORPAY_LIVE_KEY_ID if current_app.is_live_mode else settings.RAZORPAY_KEY_ID
     )
 
 @router.post("/verify-payment", response_model=schemas.PaymentVerificationResponse)
@@ -140,7 +141,7 @@ async def verify_payment(
     }
     
     # Check signature validity
-    is_valid = razorpay_service.verify_payment_signature(params_dict)
+    is_valid = razorpay_service.verify_payment_signature(params_dict, is_live_mode=payment.app.is_live_mode)
     
     if is_valid is None: 
          # client.utility.verify_payment_signature returns None on success, raises error on failure
@@ -255,7 +256,7 @@ async def get_payment_status(order_id: str, db: Session = Depends(get_db)):
         currency=payment.currency,
         status=payment.status,
         created_at=payment.created_at,
-        key_id=settings.RAZORPAY_KEY_ID
+        key_id=settings.RAZORPAY_LIVE_KEY_ID if payment.app.is_live_mode else settings.RAZORPAY_KEY_ID
     )
 
 @router.get("/")

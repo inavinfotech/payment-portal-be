@@ -1,13 +1,22 @@
 import razorpay
 from .config import settings
-
-client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
-
-# Placeholder for Razorpay service functions
 import uuid
 
-def create_order(amount: int, currency: str = "INR", receipt: str = None, notes: dict = None):
-    if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
+def _get_keys_for_mode(is_live_mode: bool):
+    if is_live_mode:
+        return settings.RAZORPAY_LIVE_KEY_ID, settings.RAZORPAY_LIVE_KEY_SECRET
+    return settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET
+
+def _get_client(is_live_mode: bool):
+    print(is_live_mode)
+    key_id, key_secret = _get_keys_for_mode(is_live_mode)
+    if not key_id or not key_secret:
+        return None
+    return razorpay.Client(auth=(key_id, key_secret))
+
+def create_order(amount: int, currency: str = "INR", receipt: str = None, notes: dict = None, is_live_mode: bool = False):
+    client = _get_client(is_live_mode)
+    if not client:
         # Mock mode
         return {
             "id": f"order_mock_{uuid.uuid4().hex[:8]}",
@@ -36,8 +45,9 @@ def create_order(amount: int, currency: str = "INR", receipt: str = None, notes:
         print(f"Razorpay Error: {e}")
         raise e
 
-def verify_payment_signature(params_dict):
-    if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
+def verify_payment_signature(params_dict, is_live_mode: bool = False):
+    client = _get_client(is_live_mode)
+    if not client:
         # Mock mode - always true for now, or check for specific mock signature
         return True
         

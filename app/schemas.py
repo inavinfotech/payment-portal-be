@@ -6,7 +6,7 @@ class AppBase(BaseModel):
     name: str
 
 class AppCreate(AppBase):
-    pass
+    is_live_mode: bool = False
 
 class AppResponse(AppBase):
     id: str
@@ -14,6 +14,7 @@ class AppResponse(AppBase):
     api_secret_hash: str
     created_at: datetime
     is_active: bool
+    is_live_mode: bool
     allowed_domains: str
 
     class Config:
@@ -64,6 +65,9 @@ class PaymentCancel(BaseModel):
 
 class AppStatusUpdate(BaseModel):
     is_active: bool
+
+class AppModeUpdate(BaseModel):
+    is_live_mode: bool
 
 class AppDomainsUpdate(BaseModel):
     allowed_domains: str
