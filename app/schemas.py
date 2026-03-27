@@ -86,3 +86,14 @@ class PaymentVerificationResponse(BaseModel):
     success: bool
     data: Optional[PaymentVerificationData] = None
     message: Optional[str] = None
+
+# Auth Schemas
+class LoginRequest(BaseModel):
+    secret_key: str
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    username: Optional[str] = None

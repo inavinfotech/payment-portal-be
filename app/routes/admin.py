@@ -3,14 +3,14 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List, Optional
 from ..database import get_db
-from ..auth import get_current_admin
+from ..auth import get_current_admin_user
 from .. import schemas, models
 
 router = APIRouter(
     prefix="/admin",
     tags=["admin"],
     responses={404: {"description": "Not found"}},
-    dependencies=[Depends(get_current_admin)]
+    dependencies=[Depends(get_current_admin_user)]
 )
 
 @router.get("/apps", response_model=List[schemas.AppResponse])

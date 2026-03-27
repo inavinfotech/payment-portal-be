@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from .database import engine, Base
 from . import models
-from .routes import payments, admin
+from .routes import payments, admin, auth_routes
 from .config import settings
 
 # Create database tables
@@ -25,6 +25,7 @@ app.add_middleware(
 
 app.include_router(payments.router)
 app.include_router(admin.router)
+app.include_router(auth_routes.router)
 
 @app.get("/")
 def read_root():
