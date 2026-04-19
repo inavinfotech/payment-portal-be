@@ -1,24 +1,26 @@
-import os
-from dotenv import load_dotenv
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Optional
 
-load_dotenv()
+class Settings(BaseSettings):
+    PROJECT_NAME: str = "Payment Service"
+    PROJECT_VERSION: str = "1.0.0"
+    API_V1_STR: str = "/api/v1"
 
-class Settings:
-    PROJECT_NAME: str = os.getenv("PROJECT_NAME", "Payment Service")
-    PROJECT_VERSION: str = os.getenv("PROJECT_VERSION", "1.0.0")
-
-    DATABASE_URL: str = os.getenv("DATABASE_URL")
+    DATABASE_URL: str
     
-    SECRET_KEY: str = os.getenv("SECRET_KEY")
-    ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
+    SECRET_KEY: str
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
-    RAZORPAY_KEY_ID: str = os.getenv("RAZORPAY_KEY_ID")
-    RAZORPAY_KEY_SECRET: str = os.getenv("RAZORPAY_KEY_SECRET")
+    RAZORPAY_KEY_ID: str
+    RAZORPAY_KEY_SECRET: str
     
-    RAZORPAY_LIVE_KEY_ID: str = os.getenv("RAZORPAY_LIVE_KEY_ID")
-    RAZORPAY_LIVE_KEY_SECRET: str = os.getenv("RAZORPAY_LIVE_KEY_SECRET")
+    RAZORPAY_LIVE_KEY_ID: Optional[str] = None
+    RAZORPAY_LIVE_KEY_SECRET: Optional[str] = None
     
-    ADMIN_SECRET_KEY: str = os.getenv("ADMIN_SECRET_KEY")
+    ADMIN_SECRET_KEY: str
+    ALLOWED_ORIGINS: list[str] = ["*"] # BFF only
+
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=True, extra="ignore")
 
 settings = Settings()
