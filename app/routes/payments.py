@@ -116,7 +116,8 @@ async def create_order(
 @router.post("/verify-payment", response_model=schemas.PaymentVerificationResponse)
 async def verify_payment(
     verify_data: schemas.PaymentVerify,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_app: models.App = Depends(get_current_app)
 ):
     # Fetch payment
     payment = db.query(models.Payment).filter(

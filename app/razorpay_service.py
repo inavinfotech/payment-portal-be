@@ -8,11 +8,20 @@ def _get_keys_for_mode(is_live_mode: bool):
     return settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET
 
 def _get_client(is_live_mode: bool):
+    if settings.FORCE_MOCK_PAYMENTS:
+        return None
     print(is_live_mode)
     key_id, key_secret = _get_keys_for_mode(is_live_mode)
     if not key_id or not key_secret:
         return None
-    return razorpay.Client(auth=(key_id, key_secret))
+    client = razorpay.Client(auth=(key_id, key_secret))
+    # Optional: configure timeout if supported by backend requests session
+    # Most versions of razorpay-python don't have a direct set_timeout, 
+    # but they use requests session which we can sometimes access or just rely on global defaults.
+    # However, setting it directly on the client if it supports it:
+    if hasattr(client, 'set_timeout'):
+        client.set_timeout(20)
+    return client
 
 def create_order(amount: int, currency: str = "INR", receipt: str = None, notes: dict = None, is_live_mode: bool = False):
     client = _get_client(is_live_mode)

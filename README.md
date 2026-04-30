@@ -1,6 +1,6 @@
-# SVARP Backend
+# Payment Portal Backend
 
-This is the backend service for the SVARP application, built with **FastAPI**. It manages authentication, payments (Razorpay), and data persistence using **SQLAlchemy** and **SQLite**. Database migrations are handled by **Alembic**.
+This is the backend service for the Payment Portal application, built with **FastAPI**. It manages authentication, payments (Razorpay), and data persistence using **SQLAlchemy** and **SQLite**. Database migrations are handled by **Alembic**.
 
 ## Tech Stack
 

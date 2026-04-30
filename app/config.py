@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     
     ADMIN_SECRET_KEY: str
     ALLOWED_ORIGINS: list[str] = ["*"] # BFF only
+    FORCE_MOCK_PAYMENTS: bool = False
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True, extra="ignore")
 
