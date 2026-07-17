@@ -1,6 +1,4 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-import secrets
 from .. import schemas, auth
 from ..config import settings
 
@@ -9,16 +7,21 @@ router = APIRouter(
     tags=["auth"]
 )
 
-@router.post("/login", response_model=schemas.Token)
+@router.post("/login", response_model=schemas.LoginResponse)
 async def login(login_data: schemas.LoginRequest):
-    if not secrets.compare_digest(login_data.secret_key, settings.ADMIN_SECRET_KEY):
+    if login_data.email != settings.DASHBOARD_EMAIL or login_data.password != settings.DASHBOARD_PASSWORD:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid Admin Secret Key",
+            detail="Invalid Email or Password",
         )
     
-    access_token = auth.create_access_token(data={"sub": "admin"})
-    return {"access_token": access_token, "token_type": "bearer"}
+    access_token = auth.create_access_token(data={"sub": settings.DASHBOARD_EMAIL, "role": "admin"})
+    return {
+        "status": "success",
+        "email": settings.DASHBOARD_EMAIL,
+        "access_token": access_token,
+        "token_type": "bearer"
+    }
 
 @router.get("/verify")
 async def verify_token(is_valid: bool = Depends(auth.get_current_admin_user)):
