@@ -1,17 +1,32 @@
 import razorpay
 from .config import settings
+from .encryption import decrypt_value
 import uuid
 
-def _get_keys_for_mode(is_live_mode: bool):
+def _get_keys_for_mode(is_live_mode: bool, account=None):
+    """
+    Resolve the correct Razorpay key pair.
+    Priority: Account from DB > Fallback to .env keys
+    """
+    if account:
+        if is_live_mode:
+            key_id = account.live_key_id
+            key_secret = decrypt_value(account.live_key_secret_enc) if account.live_key_secret_enc else None
+        else:
+            key_id = account.test_key_id
+            key_secret = decrypt_value(account.test_key_secret_enc) if account.test_key_secret_enc else None
+        if key_id and key_secret:
+            return key_id, key_secret
+
+    # Fallback to .env keys
     if is_live_mode:
         return settings.RAZORPAY_LIVE_KEY_ID, settings.RAZORPAY_LIVE_KEY_SECRET
     return settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET
 
-def _get_client(is_live_mode: bool):
+def _get_client(is_live_mode: bool, account=None):
     if settings.FORCE_MOCK_PAYMENTS:
         return None
-    print(is_live_mode)
-    key_id, key_secret = _get_keys_for_mode(is_live_mode)
+    key_id, key_secret = _get_keys_for_mode(is_live_mode, account)
     if not key_id or not key_secret:
         return None
     client = razorpay.Client(auth=(key_id, key_secret))
@@ -23,8 +38,13 @@ def _get_client(is_live_mode: bool):
         client.set_timeout(20)
     return client
 
-def create_order(amount: int, currency: str = "INR", receipt: str = None, notes: dict = None, is_live_mode: bool = False):
-    client = _get_client(is_live_mode)
+def get_key_id_for_mode(is_live_mode: bool, account=None):
+    """Return the public key ID for the given mode and account (used by frontend)."""
+    key_id, _ = _get_keys_for_mode(is_live_mode, account)
+    return key_id
+
+def create_order(amount: int, currency: str = "INR", receipt: str = None, notes: dict = None, is_live_mode: bool = False, account=None):
+    client = _get_client(is_live_mode, account)
     if not client:
         # Mock mode
         return {
@@ -54,8 +74,8 @@ def create_order(amount: int, currency: str = "INR", receipt: str = None, notes:
         print(f"Razorpay Error: {e}")
         raise e
 
-def verify_payment_signature(params_dict, is_live_mode: bool = False):
-    client = _get_client(is_live_mode)
+def verify_payment_signature(params_dict, is_live_mode: bool = False, account=None):
+    client = _get_client(is_live_mode, account)
     if not client:
         # Mock mode - always true for now, or check for specific mock signature
         return True

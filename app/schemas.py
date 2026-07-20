@@ -2,11 +2,41 @@ from pydantic import BaseModel
 from typing import Optional, Any
 from datetime import datetime
 
+# Razorpay Account Schemas
+class RazorpayAccountCreate(BaseModel):
+    name: str
+    test_key_id: str
+    test_key_secret: str
+    live_key_id: Optional[str] = None
+    live_key_secret: Optional[str] = None
+
+class RazorpayAccountUpdate(BaseModel):
+    name: Optional[str] = None
+    test_key_id: Optional[str] = None
+    test_key_secret: Optional[str] = None
+    live_key_id: Optional[str] = None
+    live_key_secret: Optional[str] = None
+
+class RazorpayAccountResponse(BaseModel):
+    id: str
+    name: str
+    test_key_id: str            # Full key ID (not a secret)
+    has_live_keys: bool
+    live_key_id: Optional[str] = None
+    is_default: bool
+    created_at: datetime
+    app_count: int = 0
+
+    class Config:
+        from_attributes = True
+
+# App Schemas
 class AppBase(BaseModel):
     name: str
 
 class AppCreate(AppBase):
     is_live_mode: bool = False
+    razorpay_account_id: Optional[str] = None
 
 class AppResponse(AppBase):
     id: str
@@ -16,6 +46,8 @@ class AppResponse(AppBase):
     is_active: bool
     is_live_mode: bool
     allowed_domains: str
+    razorpay_account_id: Optional[str] = None
+    razorpay_account_name: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -71,6 +103,9 @@ class AppModeUpdate(BaseModel):
 
 class AppDomainsUpdate(BaseModel):
     allowed_domains: str
+
+class AppAccountUpdate(BaseModel):
+    razorpay_account_id: Optional[str] = None
 
 class PaymentVerificationData(BaseModel):
     verification_status: str

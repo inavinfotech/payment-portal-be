@@ -5,6 +5,7 @@ from typing import List, Optional
 from ..database import get_db
 from ..auth import get_current_admin_user
 from .. import schemas, models
+from ..encryption import encrypt_value
 
 router = APIRouter(
     prefix="/admin",
@@ -13,9 +14,127 @@ router = APIRouter(
     dependencies=[Depends(get_current_admin_user)]
 )
 
-@router.get("/apps", response_model=List[schemas.AppResponse])
+# ─── Razorpay Account Endpoints ─────────────────────────────────────────────
+
+@router.get("/razorpay-accounts")
+async def get_razorpay_accounts(db: Session = Depends(get_db)):
+    accounts = db.query(models.RazorpayAccount).all()
+    result = []
+    for acc in accounts:
+        app_count = db.query(models.App).filter(models.App.razorpay_account_id == acc.id).count()
+        result.append({
+            "id": acc.id,
+            "name": acc.name,
+            "test_key_id": acc.test_key_id,
+            "has_live_keys": bool(acc.live_key_id and acc.live_key_secret_enc),
+            "live_key_id": acc.live_key_id,
+            "is_default": acc.is_default,
+            "created_at": acc.created_at,
+            "app_count": app_count
+        })
+    return result
+
+@router.post("/razorpay-accounts")
+async def create_razorpay_account(account: schemas.RazorpayAccountCreate, db: Session = Depends(get_db)):
+    db_account = models.RazorpayAccount(
+        name=account.name,
+        test_key_id=account.test_key_id,
+        test_key_secret_enc=encrypt_value(account.test_key_secret),
+        live_key_id=account.live_key_id,
+        live_key_secret_enc=encrypt_value(account.live_key_secret) if account.live_key_secret else None,
+    )
+    db.add(db_account)
+    db.commit()
+    db.refresh(db_account)
+
+    return {
+        "id": db_account.id,
+        "name": db_account.name,
+        "test_key_id": db_account.test_key_id,
+        "has_live_keys": bool(db_account.live_key_id and db_account.live_key_secret_enc),
+        "live_key_id": db_account.live_key_id,
+        "is_default": db_account.is_default,
+        "created_at": db_account.created_at,
+        "app_count": 0
+    }
+
+@router.put("/razorpay-accounts/{account_id}")
+async def update_razorpay_account(
+    account_id: str,
+    update: schemas.RazorpayAccountUpdate,
+    db: Session = Depends(get_db)
+):
+    acc = db.query(models.RazorpayAccount).filter(models.RazorpayAccount.id == account_id).first()
+    if not acc:
+        raise HTTPException(status_code=404, detail="Razorpay account not found")
+
+    if update.name is not None:
+        acc.name = update.name
+    if update.test_key_id is not None:
+        acc.test_key_id = update.test_key_id
+    if update.test_key_secret is not None:
+        acc.test_key_secret_enc = encrypt_value(update.test_key_secret)
+    if update.live_key_id is not None:
+        acc.live_key_id = update.live_key_id
+    if update.live_key_secret is not None:
+        acc.live_key_secret_enc = encrypt_value(update.live_key_secret)
+
+    db.commit()
+    db.refresh(acc)
+    app_count = db.query(models.App).filter(models.App.razorpay_account_id == acc.id).count()
+
+    return {
+        "id": acc.id,
+        "name": acc.name,
+        "test_key_id": acc.test_key_id,
+        "has_live_keys": bool(acc.live_key_id and acc.live_key_secret_enc),
+        "live_key_id": acc.live_key_id,
+        "is_default": acc.is_default,
+        "created_at": acc.created_at,
+        "app_count": app_count
+    }
+
+@router.delete("/razorpay-accounts/{account_id}")
+async def delete_razorpay_account(account_id: str, db: Session = Depends(get_db)):
+    acc = db.query(models.RazorpayAccount).filter(models.RazorpayAccount.id == account_id).first()
+    if not acc:
+        raise HTTPException(status_code=404, detail="Razorpay account not found")
+
+    if acc.is_default:
+        raise HTTPException(status_code=400, detail="Cannot delete the default account")
+
+    linked_apps = db.query(models.App).filter(models.App.razorpay_account_id == account_id).count()
+    if linked_apps > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete account with {linked_apps} linked app(s). Reassign them first."
+        )
+
+    db.delete(acc)
+    db.commit()
+    return {"status": "success", "message": "Razorpay account deleted"}
+
+# ─── App Endpoints ───────────────────────────────────────────────────────────
+
+@router.get("/apps")
 async def get_apps(db: Session = Depends(get_db)):
-    return db.query(models.App).all()
+    apps = db.query(models.App).all()
+    result = []
+    for app in apps:
+        app_dict = {
+            "id": app.id,
+            "name": app.name,
+            "api_key": app.api_key,
+            "api_secret_hash": app.api_secret_hash,
+            "created_at": app.created_at,
+            "is_active": app.is_active,
+            "is_live_mode": app.is_live_mode,
+            "allowed_domains": app.allowed_domains,
+            "razorpay_account_id": app.razorpay_account_id,
+            "razorpay_account_name": app.razorpay_account.name if app.razorpay_account else None,
+        }
+        result.append(app_dict)
+    return result
 
 @router.post("/apps", response_model=schemas.AppCreateResponse)
 async def create_app(app: schemas.AppCreate, db: Session = Depends(get_db)):
@@ -25,12 +144,28 @@ async def create_app(app: schemas.AppCreate, db: Session = Depends(get_db)):
     
     api_key = f"app_{secrets.token_urlsafe(16)}"
     api_secret = secrets.token_urlsafe(32)
+
+    # Validate razorpay_account_id if provided
+    if app.razorpay_account_id:
+        acc = db.query(models.RazorpayAccount).filter(
+            models.RazorpayAccount.id == app.razorpay_account_id
+        ).first()
+        if not acc:
+            raise HTTPException(status_code=400, detail="Invalid Razorpay account ID")
+    else:
+        # Assign default account if available
+        default_acc = db.query(models.RazorpayAccount).filter(
+            models.RazorpayAccount.is_default == True
+        ).first()
+        if default_acc:
+            app.razorpay_account_id = default_acc.id
     
     db_app = models.App(
         name=app.name,
         api_key=api_key,
         api_secret_hash=get_password_hash(api_secret),
-        is_live_mode=app.is_live_mode
+        is_live_mode=app.is_live_mode,
+        razorpay_account_id=app.razorpay_account_id
     )
     db.add(db_app)
     db.commit()
@@ -219,3 +354,29 @@ async def update_app_domains(
     app.allowed_domains = domains_update.allowed_domains
     db.commit()
     return {"status": "success", "allowed_domains": app.allowed_domains}
+
+@router.put("/apps/{app_id}/razorpay-account")
+async def update_app_razorpay_account(
+    app_id: str,
+    account_update: schemas.AppAccountUpdate,
+    db: Session = Depends(get_db)
+):
+    app = db.query(models.App).filter(models.App.id == app_id).first()
+    if not app:
+        raise HTTPException(status_code=404, detail="App not found")
+
+    if account_update.razorpay_account_id:
+        acc = db.query(models.RazorpayAccount).filter(
+            models.RazorpayAccount.id == account_update.razorpay_account_id
+        ).first()
+        if not acc:
+            raise HTTPException(status_code=400, detail="Invalid Razorpay account ID")
+
+    app.razorpay_account_id = account_update.razorpay_account_id
+    db.commit()
+    db.refresh(app)
+    return {
+        "status": "success",
+        "razorpay_account_id": app.razorpay_account_id,
+        "razorpay_account_name": app.razorpay_account.name if app.razorpay_account else None
+    }

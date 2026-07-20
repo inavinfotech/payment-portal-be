@@ -9,6 +9,20 @@ import pytz
 def get_ist_time():
     return datetime.now(pytz.timezone('Asia/Kolkata'))
 
+class RazorpayAccount(Base):
+    __tablename__ = "razorpay_accounts"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String, nullable=False)
+    test_key_id = Column(String, nullable=False)
+    test_key_secret_enc = Column(String, nullable=False)   # Fernet-encrypted
+    live_key_id = Column(String, nullable=True)
+    live_key_secret_enc = Column(String, nullable=True)    # Fernet-encrypted
+    is_default = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), default=get_ist_time)
+
+    apps = relationship("App", back_populates="razorpay_account")
+
 class App(Base):
     __tablename__ = "apps"
 
@@ -20,8 +34,10 @@ class App(Base):
     is_active = Column(Boolean, default=True)
     is_live_mode = Column(Boolean, default=False)
     allowed_domains = Column(String, default="*") # Comma-separated list of allowed domains
+    razorpay_account_id = Column(String, ForeignKey("razorpay_accounts.id"), nullable=True)
 
     payments = relationship("Payment", back_populates="app")
+    razorpay_account = relationship("RazorpayAccount", back_populates="apps")
 
 class SystemSetting(Base):
     __tablename__ = "system_settings"

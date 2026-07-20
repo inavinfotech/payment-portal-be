@@ -22,13 +22,52 @@ async def lifespan(app: FastAPI):
     # Create database tables
     Base.metadata.create_all(bind=engine)
     
-    # Seed data
-    # from .services.seeding import seed_data
-    # seed_data()
+    # Auto-seed default Razorpay account from .env if none exists
+    _seed_default_razorpay_account()
     
     yield
     
     scheduler.shutdown()
+
+def _seed_default_razorpay_account():
+    """Seed a default RazorpayAccount from .env keys if no accounts exist yet."""
+    from .database import SessionLocal
+    from .encryption import encrypt_value
+    
+    db = SessionLocal()
+    try:
+        existing = db.query(models.RazorpayAccount).first()
+        if existing:
+            return  # Already has accounts, skip seeding
+        
+        # Only seed if .env keys are present
+        if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
+            return
+        
+        default_account = models.RazorpayAccount(
+            name="Default Account",
+            test_key_id=settings.RAZORPAY_KEY_ID,
+            test_key_secret_enc=encrypt_value(settings.RAZORPAY_KEY_SECRET),
+            live_key_id=settings.RAZORPAY_LIVE_KEY_ID,
+            live_key_secret_enc=encrypt_value(settings.RAZORPAY_LIVE_KEY_SECRET) if settings.RAZORPAY_LIVE_KEY_SECRET else None,
+            is_default=True
+        )
+        db.add(default_account)
+        db.commit()
+        db.refresh(default_account)
+        
+        # Link all existing orphan apps to the default account
+        orphan_apps = db.query(models.App).filter(models.App.razorpay_account_id == None).all()
+        for app in orphan_apps:
+            app.razorpay_account_id = default_account.id
+        db.commit()
+        
+        print(f"[SEED] Created default Razorpay account and linked {len(orphan_apps)} app(s)")
+    except Exception as e:
+        print(f"[SEED] Error seeding default Razorpay account: {e}")
+        db.rollback()
+    finally:
+        db.close()
 
 app = FastAPI(
     title=settings.PROJECT_NAME,

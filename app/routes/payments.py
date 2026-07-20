@@ -4,7 +4,6 @@ from sqlalchemy import func
 from ..database import get_db
 from ..auth import get_current_app
 from .. import schemas, models, razorpay_service
-from ..config import settings
 
 router = APIRouter(
     prefix="/payments",
@@ -71,13 +70,17 @@ async def create_order(
             detail="Amount must be greater than 0"
         )
 
+    # Resolve the linked Razorpay account
+    rz_account = current_app.razorpay_account
+
     # Create Razorpay Order
     try:
         order = razorpay_service.create_order(
             amount=payment.amount,
             currency=payment.currency,
             notes=payment.metadata_info,
-            is_live_mode=current_app.is_live_mode
+            is_live_mode=current_app.is_live_mode,
+            account=rz_account
         )
     except Exception as e:
         raise HTTPException(
@@ -110,7 +113,7 @@ async def create_order(
         currency=db_payment.currency,
         status=db_payment.status,
         created_at=db_payment.created_at,
-        key_id=settings.RAZORPAY_LIVE_KEY_ID if current_app.is_live_mode else settings.RAZORPAY_KEY_ID
+        key_id=razorpay_service.get_key_id_for_mode(current_app.is_live_mode, rz_account)
     )
 
 @router.post("/verify-payment", response_model=schemas.PaymentVerificationResponse)
@@ -142,7 +145,8 @@ async def verify_payment(
     }
     
     # Check signature validity
-    is_valid = razorpay_service.verify_payment_signature(params_dict, is_live_mode=payment.app.is_live_mode)
+    rz_account = payment.app.razorpay_account
+    is_valid = razorpay_service.verify_payment_signature(params_dict, is_live_mode=payment.app.is_live_mode, account=rz_account)
     
     if is_valid is None: 
          # client.utility.verify_payment_signature returns None on success, raises error on failure
@@ -250,6 +254,7 @@ async def get_payment_status(order_id: str, db: Session = Depends(get_db)):
             detail="Order not found"
         )
     
+    rz_account = payment.app.razorpay_account
     return schemas.PaymentResponse(
         id=payment.id,
         razorpay_order_id=payment.razorpay_order_id,
@@ -257,7 +262,7 @@ async def get_payment_status(order_id: str, db: Session = Depends(get_db)):
         currency=payment.currency,
         status=payment.status,
         created_at=payment.created_at,
-        key_id=settings.RAZORPAY_LIVE_KEY_ID if payment.app.is_live_mode else settings.RAZORPAY_KEY_ID
+        key_id=razorpay_service.get_key_id_for_mode(payment.app.is_live_mode, rz_account)
     )
 
 @router.get("/")
