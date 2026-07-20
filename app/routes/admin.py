@@ -380,3 +380,36 @@ async def update_app_razorpay_account(
         "razorpay_account_id": app.razorpay_account_id,
         "razorpay_account_name": app.razorpay_account.name if app.razorpay_account else None
     }
+
+@router.put("/apps/{app_id}")
+async def update_app(
+    app_id: str,
+    app_update: schemas.AppUpdate,
+    db: Session = Depends(get_db)
+):
+    app = db.query(models.App).filter(models.App.id == app_id).first()
+    if not app:
+        raise HTTPException(status_code=404, detail="App not found")
+        
+    if app_update.name is not None:
+        app.name = app_update.name
+    if app_update.razorpay_account_id is not None:
+        if app_update.razorpay_account_id:
+            acc = db.query(models.RazorpayAccount).filter(
+                models.RazorpayAccount.id == app_update.razorpay_account_id
+            ).first()
+            if not acc:
+                raise HTTPException(status_code=400, detail="Invalid Razorpay account ID")
+            app.razorpay_account_id = app_update.razorpay_account_id
+        else:
+            app.razorpay_account_id = None
+            
+    db.commit()
+    db.refresh(app)
+    return {
+        "status": "success",
+        "id": app.id,
+        "name": app.name,
+        "razorpay_account_id": app.razorpay_account_id,
+        "razorpay_account_name": app.razorpay_account.name if app.razorpay_account else None
+    }

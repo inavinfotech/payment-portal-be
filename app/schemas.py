@@ -107,6 +107,10 @@ class AppDomainsUpdate(BaseModel):
 class AppAccountUpdate(BaseModel):
     razorpay_account_id: Optional[str] = None
 
+class AppUpdate(BaseModel):
+    name: Optional[str] = None
+    razorpay_account_id: Optional[str] = None
+
 class PaymentVerificationData(BaseModel):
     verification_status: str
     payment_id: str
