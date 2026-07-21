@@ -33,6 +33,7 @@ def _seed_default_razorpay_account():
     """Seed a default RazorpayAccount from .env keys if no accounts exist yet."""
     from .database import SessionLocal
     from .encryption import encrypt_value
+    from sqlalchemy.exc import IntegrityError
     
     db = SessionLocal()
     try:
@@ -45,6 +46,7 @@ def _seed_default_razorpay_account():
             return
         
         default_account = models.RazorpayAccount(
+            id="default",
             name="Default Account",
             test_key_id=settings.RAZORPAY_KEY_ID,
             test_key_secret_enc=encrypt_value(settings.RAZORPAY_KEY_SECRET),
@@ -63,11 +65,15 @@ def _seed_default_razorpay_account():
         db.commit()
         
         print(f"[SEED] Created default Razorpay account and linked {len(orphan_apps)} app(s)")
+    except IntegrityError:
+        db.rollback()
+        print("[SEED] Default Razorpay account was already seeded by another process")
     except Exception as e:
         print(f"[SEED] Error seeding default Razorpay account: {e}")
         db.rollback()
     finally:
         db.close()
+
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
