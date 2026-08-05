@@ -60,5 +60,7 @@ class Payment(Base):
     metadata_info = Column(JSON, nullable=True) # Renamed from metadata to avoid conflict with SQLAlchemy metadata
     created_at = Column(DateTime(timezone=True), default=get_ist_time)
     paid_at = Column(DateTime(timezone=True), nullable=True)
+    razorpay_account_id = Column(String, ForeignKey("razorpay_accounts.id"), nullable=True)
 
     app = relationship("App", back_populates="payments")
+    razorpay_account = relationship("RazorpayAccount")

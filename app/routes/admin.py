@@ -196,10 +196,16 @@ async def get_payments(
     results = query.all()
     
     # Map results to schema
-    return [
-        {**payment.__dict__, "app_name": app_name} 
-        for payment, app_name in results
-    ]
+    response = []
+    for payment, app_name in results:
+        rz_acc = payment.razorpay_account or (payment.app.razorpay_account if payment.app else None)
+        response.append({
+            **payment.__dict__,
+            "app_name": app_name,
+            "razorpay_account_id": rz_acc.id if rz_acc else None,
+            "razorpay_account_name": rz_acc.name if rz_acc else None,
+        })
+    return response
 
 @router.get("/payments/export")
 async def export_payments(
@@ -221,8 +227,11 @@ async def export_payments(
     # Convert to list of dicts
     data = []
     for payment, app_name in results:
+        rz_acc = payment.razorpay_account or (payment.app.razorpay_account if payment.app else None)
+        rz_name = rz_acc.name if rz_acc else "N/A"
         data.append({
             "App Name": app_name,
+            "Razorpay Account": rz_name,
             "Razorpay Order ID": payment.razorpay_order_id,
             "Razorpay Payment ID": payment.razorpay_payment_id,
             "Amount": payment.amount,

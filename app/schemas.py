@@ -74,6 +74,8 @@ class PaymentResponse(BaseModel):
     status: str
     created_at: datetime
     app_name: Optional[str] = None
+    razorpay_account_id: Optional[str] = None
+    razorpay_account_name: Optional[str] = None
     metadata_info: Optional[dict[str, Any]] = None
     razorpay_payment_id: Optional[str] = None
     key_id: Optional[str] = None # For frontend use

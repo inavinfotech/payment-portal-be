@@ -12,7 +12,11 @@ fi
 
 # Run migrations
 echo "Running database migrations..."
-python3 -m alembic upgrade head
+if [ -d "venv" ]; then
+    ./venv/bin/python -m alembic upgrade head
+else
+    python3 -m alembic upgrade head
+fi
 
 if [ $? -eq 0 ]; then
     echo "Migrations completed successfully."

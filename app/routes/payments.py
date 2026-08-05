@@ -100,7 +100,8 @@ async def create_order(
         plan_type=payment.plan_type,
         razorpay_order_id=order.get("id"),
         status=order.get("status", "created"),
-        metadata_info=payment.metadata_info
+        metadata_info=payment.metadata_info,
+        razorpay_account_id=rz_account.id if rz_account else None
     )
     db.add(db_payment)
     db.commit()
@@ -113,6 +114,8 @@ async def create_order(
         currency=db_payment.currency,
         status=db_payment.status,
         created_at=db_payment.created_at,
+        razorpay_account_id=db_payment.razorpay_account_id,
+        razorpay_account_name=rz_account.name if rz_account else None,
         key_id=razorpay_service.get_key_id_for_mode(current_app.is_live_mode, rz_account)
     )
 
@@ -254,7 +257,7 @@ async def get_payment_status(order_id: str, db: Session = Depends(get_db)):
             detail="Order not found"
         )
     
-    rz_account = payment.app.razorpay_account
+    rz_account = payment.razorpay_account or (payment.app.razorpay_account if payment.app else None)
     return schemas.PaymentResponse(
         id=payment.id,
         razorpay_order_id=payment.razorpay_order_id,
@@ -262,6 +265,8 @@ async def get_payment_status(order_id: str, db: Session = Depends(get_db)):
         currency=payment.currency,
         status=payment.status,
         created_at=payment.created_at,
+        razorpay_account_id=rz_account.id if rz_account else None,
+        razorpay_account_name=rz_account.name if rz_account else None,
         key_id=razorpay_service.get_key_id_for_mode(payment.app.is_live_mode, rz_account)
     )
 
@@ -296,7 +301,10 @@ async def export_payments(
     # Convert to list of dicts
     data = []
     for p in payments:
+        rz_acc = p.razorpay_account or (p.app.razorpay_account if p.app else None)
+        rz_name = rz_acc.name if rz_acc else "N/A"
         data.append({
+            "Razorpay Account": rz_name,
             "Razorpay Order ID": p.razorpay_order_id,
             "Razorpay Payment ID": p.razorpay_payment_id,
             "Amount": p.amount,
