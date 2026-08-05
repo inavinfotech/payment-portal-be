@@ -31,7 +31,15 @@ else
 fi
 
 # 4. Restart the backend systemd service
-echo "Restarting the backend service..."
-sudo systemctl restart payment-portal-be
+SERVICE_NAME="payment-portal-be"
+if [ -f ".env" ]; then
+    ENV_SERVICE=$(grep -E '^(SERVICE_NAME|SYSTEMD_SERVICE_NAME|SERVICE)=' .env | head -n 1 | cut -d '=' -f2- | tr -d '"' | tr -d "'" | xargs 2>/dev/null || true)
+    if [ -n "$ENV_SERVICE" ]; then
+        SERVICE_NAME="$ENV_SERVICE"
+    fi
+fi
+
+echo "Restarting backend service ($SERVICE_NAME)..."
+sudo systemctl restart "$SERVICE_NAME"
 
 echo "=== Backend Deployment Completed Successfully ==="
