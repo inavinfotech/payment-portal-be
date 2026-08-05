@@ -18,7 +18,6 @@ class Settings(BaseSettings):
     RAZORPAY_LIVE_KEY_ID: Optional[str] = None
     RAZORPAY_LIVE_KEY_SECRET: Optional[str] = None
     
-    ADMIN_SECRET_KEY: str
     DASHBOARD_EMAIL: str 
     DASHBOARD_PASSWORD: str
     ALLOWED_ORIGINS: list[str] = ["*"] # BFF only

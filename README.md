@@ -44,7 +44,6 @@ This is the backend service for the Payment Portal application, built with **Fas
     RAZORPAY_KEY_SECRET=your_razorpay_key_secret
     DATABASE_URL=sqlite:///./db/payment.db
     SECRET_KEY=your_secret_key
-    ADMIN_SECRET_KEY=your_admin_secret_key
     ```
 
 5.  **Initialize the Database:**

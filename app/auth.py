@@ -35,17 +35,6 @@ def get_current_app(
         )
     return app
 
-def get_current_admin(
-    x_admin_key: str = Header(..., alias="x-admin-key", description="Admin API Key")
-):
-    import secrets
-    if not secrets.compare_digest(x_admin_key, settings.ADMIN_SECRET_KEY):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid Admin Credentials",
-        )
-    return True
-
 # JWT Configuration
 SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = "HS256"
@@ -62,15 +51,8 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     return encoded_jwt
 
 def get_current_admin_user(
-    authorization: str = Header(None, description="Bearer token"),
-    x_admin_key: str = Header(None, alias="x-admin-key", description="Legacy Admin API Key")
+    authorization: str = Header(None, description="Bearer token")
 ):
-    # Support legacy admin key for now
-    if x_admin_key:
-        import secrets
-        if secrets.compare_digest(x_admin_key, settings.ADMIN_SECRET_KEY):
-            return True
-    
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
