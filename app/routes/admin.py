@@ -274,20 +274,32 @@ async def export_payments(
 
 @router.get("/dashboard-summary")
 async def get_dashboard_summary(db: Session = Depends(get_db)):
-    total_payments = db.query(models.Payment).count()
-    total_revenue = db.query(func.sum(models.Payment.amount)).filter(models.Payment.status == "paid").scalar() or 0
+    # Base query: only live mode payments (exclude test/sandbox)
+    live_filter = models.App.is_live_mode == True
     
-    # Revenue by app
+    total_payments = db.query(models.Payment)\
+        .join(models.App, models.Payment.app_id == models.App.id)\
+        .filter(live_filter).count()
+    
+    total_revenue = db.query(func.sum(models.Payment.amount))\
+        .join(models.App, models.Payment.app_id == models.App.id)\
+        .filter(models.Payment.status == "paid", live_filter).scalar() or 0
+    
+    # Revenue by app (live only)
     revenue_by_app = db.query(
         models.Payment.app_id, 
         func.sum(models.Payment.amount).label("total")
-    ).filter(models.Payment.status == "paid").group_by(models.Payment.app_id).all()
+    ).join(models.App, models.Payment.app_id == models.App.id)\
+     .filter(models.Payment.status == "paid", live_filter)\
+     .group_by(models.Payment.app_id).all()
     
-    # Payment status counts
+    # Payment status counts (live only)
     status_counts = db.query(
         models.Payment.status,
         func.count(models.Payment.id).label("count")
-    ).group_by(models.Payment.status).all()
+    ).join(models.App, models.Payment.app_id == models.App.id)\
+     .filter(live_filter)\
+     .group_by(models.Payment.status).all()
     
     return {
         "total_payments": total_payments,
