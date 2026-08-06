@@ -79,6 +79,7 @@ class PaymentResponse(BaseModel):
     metadata_info: Optional[dict[str, Any]] = None
     razorpay_payment_id: Optional[str] = None
     key_id: Optional[str] = None # For frontend use
+    is_live_mode: Optional[bool] = None # Test or Live mode indicator
     
     class Config:
         from_attributes = True

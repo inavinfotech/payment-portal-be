@@ -204,6 +204,7 @@ async def get_payments(
             "app_name": app_name,
             "razorpay_account_id": rz_acc.id if rz_acc else None,
             "razorpay_account_name": rz_acc.name if rz_acc else None,
+            "is_live_mode": payment.app.is_live_mode if payment.app else False,
         })
     return response
 
