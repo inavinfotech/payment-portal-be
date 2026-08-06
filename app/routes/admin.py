@@ -204,7 +204,6 @@ async def get_payments(
             "app_name": app_name,
             "razorpay_account_id": rz_acc.id if rz_acc else None,
             "razorpay_account_name": rz_acc.name if rz_acc else None,
-            "is_live_mode": payment.app.is_live_mode if payment.app else False,
         })
     return response
 
@@ -274,31 +273,27 @@ async def export_payments(
 
 @router.get("/dashboard-summary")
 async def get_dashboard_summary(db: Session = Depends(get_db)):
-    # Base query: only live mode payments (exclude test/sandbox)
-    live_filter = models.App.is_live_mode == True
+    # Only live mode payments count towards stats (using stored mode on payment, not app's current config)
+    live_filter = models.Payment.is_live_mode == True
     
     total_payments = db.query(models.Payment)\
-        .join(models.App, models.Payment.app_id == models.App.id)\
         .filter(live_filter).count()
     
     total_revenue = db.query(func.sum(models.Payment.amount))\
-        .join(models.App, models.Payment.app_id == models.App.id)\
         .filter(models.Payment.status == "paid", live_filter).scalar() or 0
     
     # Revenue by app (live only)
     revenue_by_app = db.query(
         models.Payment.app_id, 
         func.sum(models.Payment.amount).label("total")
-    ).join(models.App, models.Payment.app_id == models.App.id)\
-     .filter(models.Payment.status == "paid", live_filter)\
+    ).filter(models.Payment.status == "paid", live_filter)\
      .group_by(models.Payment.app_id).all()
     
     # Payment status counts (live only)
     status_counts = db.query(
         models.Payment.status,
         func.count(models.Payment.id).label("count")
-    ).join(models.App, models.Payment.app_id == models.App.id)\
-     .filter(live_filter)\
+    ).filter(live_filter)\
      .group_by(models.Payment.status).all()
     
     return {

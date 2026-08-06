@@ -101,6 +101,7 @@ async def create_order(
         razorpay_order_id=order.get("id"),
         status=order.get("status", "created"),
         metadata_info=payment.metadata_info,
+        is_live_mode=current_app.is_live_mode,
         razorpay_account_id=rz_account.id if rz_account else None
     )
     db.add(db_payment)
