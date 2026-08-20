@@ -117,6 +117,8 @@ class AppAccountUpdate(BaseModel):
 class AppUpdate(BaseModel):
     name: Optional[str] = None
     razorpay_account_id: Optional[str] = None
+    webhook_url: Optional[str] = None
+    webhook_secret: Optional[str] = None
 
 class PaymentVerificationData(BaseModel):
     verification_status: str

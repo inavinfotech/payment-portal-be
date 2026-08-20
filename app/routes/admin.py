@@ -130,6 +130,8 @@ async def get_apps(db: Session = Depends(get_db)):
             "is_active": app.is_active,
             "is_live_mode": app.is_live_mode,
             "allowed_domains": app.allowed_domains,
+            "webhook_url": app.webhook_url,
+            "webhook_secret": app.webhook_secret,
             "razorpay_account_id": app.razorpay_account_id,
             "razorpay_account_name": app.razorpay_account.name if app.razorpay_account else None,
         }
@@ -165,6 +167,8 @@ async def create_app(app: schemas.AppCreate, db: Session = Depends(get_db)):
         api_key=api_key,
         api_secret_hash=get_password_hash(api_secret),
         is_live_mode=app.is_live_mode,
+        webhook_url=app.webhook_url,
+        webhook_secret=app.webhook_secret,
         razorpay_account_id=app.razorpay_account_id
     )
     db.add(db_app)
@@ -410,6 +414,10 @@ async def update_app(
         
     if app_update.name is not None:
         app.name = app_update.name
+    if app_update.webhook_url is not None:
+        app.webhook_url = app_update.webhook_url
+    if app_update.webhook_secret is not None:
+        app.webhook_secret = app_update.webhook_secret
     if app_update.razorpay_account_id is not None:
         if app_update.razorpay_account_id:
             acc = db.query(models.RazorpayAccount).filter(
@@ -427,6 +435,8 @@ async def update_app(
         "status": "success",
         "id": app.id,
         "name": app.name,
+        "webhook_url": app.webhook_url,
+        "webhook_secret": app.webhook_secret,
         "razorpay_account_id": app.razorpay_account_id,
         "razorpay_account_name": app.razorpay_account.name if app.razorpay_account else None
     }
