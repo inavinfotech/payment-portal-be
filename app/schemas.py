@@ -37,6 +37,8 @@ class AppBase(BaseModel):
 class AppCreate(AppBase):
     is_live_mode: bool = False
     razorpay_account_id: Optional[str] = None
+    webhook_url: Optional[str] = None
+    webhook_secret: Optional[str] = None
 
 class AppResponse(AppBase):
     id: str
@@ -46,6 +48,8 @@ class AppResponse(AppBase):
     is_active: bool
     is_live_mode: bool
     allowed_domains: str
+    webhook_url: Optional[str] = None
+    webhook_secret: Optional[str] = None
     razorpay_account_id: Optional[str] = None
     razorpay_account_name: Optional[str] = None
 

@@ -34,6 +34,8 @@ class App(Base):
     is_active = Column(Boolean, default=True)
     is_live_mode = Column(Boolean, default=False)
     allowed_domains = Column(String, default="*") # Comma-separated list of allowed domains
+    webhook_url = Column(String, nullable=True)
+    webhook_secret = Column(String, nullable=True)
     razorpay_account_id = Column(String, ForeignKey("razorpay_accounts.id"), nullable=True)
 
     payments = relationship("Payment", back_populates="app")

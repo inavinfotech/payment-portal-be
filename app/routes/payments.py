@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+import json
 from ..database import get_db
 from ..auth import get_current_app
 from .. import schemas, models, razorpay_service
+from ..services.webhook_dispatcher import dispatch_payment_webhook
 
 router = APIRouter(
     prefix="/payments",
@@ -174,6 +176,24 @@ async def verify_payment(
     
     db.commit()
     db.refresh(payment)
+
+    # Dispatch outbound webhook to client app if configured
+    if payment.app and payment.app.webhook_url:
+        await dispatch_payment_webhook(
+            webhook_url=payment.app.webhook_url,
+            webhook_secret=payment.app.webhook_secret,
+            event_type="payment.success",
+            payment_data={
+                "payment_id": payment.id,
+                "razorpay_order_id": payment.razorpay_order_id,
+                "razorpay_payment_id": payment.razorpay_payment_id,
+                "user_id": payment.user_id,
+                "amount": payment.amount,
+                "currency": payment.currency,
+                "status": payment.status,
+                "metadata": payment.metadata_info
+            }
+        )
     
     return schemas.PaymentVerificationResponse(
         success=True,
@@ -344,4 +364,71 @@ async def export_payments(
     }
     
     return StreamingResponse(iter([file_stream.getvalue()]), media_type=media_type, headers=headers)
+
+
+@router.post("/webhook/razorpay")
+async def razorpay_webhook(
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    body_bytes = await request.body()
+    try:
+        data = json.loads(body_bytes)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+        
+    event = data.get("event")
+    payload = data.get("payload", {})
+    payment_entity = payload.get("payment", {}).get("entity", {})
+    order_id = payment_entity.get("order_id") or payload.get("order", {}).get("entity", {}).get("id")
+    
+    if not order_id:
+        return {"status": "ignored", "reason": "No order_id found"}
+        
+    payment = db.query(models.Payment).filter(models.Payment.razorpay_order_id == order_id).first()
+    if not payment:
+        return {"status": "ignored", "reason": "Payment record not found"}
+        
+    if event in ["payment.captured", "order.paid"]:
+        if payment.status != "paid":
+            payment.status = "paid"
+            payment.razorpay_payment_id = payment_entity.get("id") or payment.razorpay_payment_id
+            payment.paid_at = func.now()
+            db.commit()
+            db.refresh(payment)
+            
+            if payment.app and payment.app.webhook_url:
+                await dispatch_payment_webhook(
+                    webhook_url=payment.app.webhook_url,
+                    webhook_secret=payment.app.webhook_secret,
+                    event_type="payment.success",
+                    payment_data={
+                        "payment_id": payment.id,
+                        "razorpay_order_id": payment.razorpay_order_id,
+                        "razorpay_payment_id": payment.razorpay_payment_id,
+                        "user_id": payment.user_id,
+                        "amount": payment.amount,
+                        "currency": payment.currency,
+                        "status": payment.status,
+                        "metadata": payment.metadata_info
+                    }
+                )
+    elif event in ["payment.failed"]:
+        payment.status = "failed"
+        db.commit()
+        if payment.app and payment.app.webhook_url:
+            await dispatch_payment_webhook(
+                webhook_url=payment.app.webhook_url,
+                webhook_secret=payment.app.webhook_secret,
+                event_type="payment.failed",
+                payment_data={
+                    "payment_id": payment.id,
+                    "razorpay_order_id": payment.razorpay_order_id,
+                    "status": "failed",
+                    "metadata": payment.metadata_info
+                }
+            )
+
+    return {"status": "ok"}
+
 
